@@ -75,7 +75,8 @@ func NewInternalAdminAPI(
 }
 
 // AdminAPIClient is a sub interface of the admin API containing what we need in the operator
-// nolint:revive // usually package is called adminutils
+//
+
 type AdminAPIClient interface {
 	Config(ctx context.Context, includeDefaults bool) (admin.Config, error)
 	ClusterConfigStatus(ctx context.Context, sendToLeader bool) (admin.ConfigStatusResponse, error)
@@ -84,21 +85,28 @@ type AdminAPIClient interface {
 	GetNodeConfig(ctx context.Context) (admin.NodeConfig, error)
 
 	CreateUser(ctx context.Context, username, password, mechanism string) error
+	DeleteUser(ctx context.Context, username string) error
 
 	GetFeatures(ctx context.Context) (admin.FeaturesResponse, error)
+	SetLicense(ctx context.Context, license interface{}) error
+	GetLicenseInfo(ctx context.Context) (admin.License, error)
 
 	Brokers(ctx context.Context) ([]admin.Broker, error)
+	Broker(ctx context.Context, nodeID int) (admin.Broker, error)
 	DecommissionBroker(ctx context.Context, node int) error
 	RecommissionBroker(ctx context.Context, node int) error
 
 	EnableMaintenanceMode(ctx context.Context, node int) error
 	DisableMaintenanceMode(ctx context.Context, node int) error
+
+	GetHealthOverview(ctx context.Context) (admin.ClusterHealthOverview, error)
 }
 
 var _ AdminAPIClient = &admin.AdminAPI{}
 
 // AdminAPIClientFactory is an abstract constructor of admin API clients
-// nolint:revive // usually package is called adminutils
+//
+
 type AdminAPIClientFactory func(
 	ctx context.Context,
 	k8sClient client.Reader,

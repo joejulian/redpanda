@@ -15,12 +15,13 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	redpandav1alpha1 "github.com/redpanda-data/redpanda/src/go/k8s/apis/redpanda/v1alpha1"
-	"github.com/redpanda-data/redpanda/src/go/k8s/pkg/resources"
-	resourcetypes "github.com/redpanda-data/redpanda/src/go/k8s/pkg/resources/types"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	redpandav1alpha1 "github.com/redpanda-data/redpanda/src/go/k8s/apis/redpanda/v1alpha1"
+	"github.com/redpanda-data/redpanda/src/go/k8s/pkg/resources"
+	resourcetypes "github.com/redpanda-data/redpanda/src/go/k8s/pkg/resources/types"
 )
 
 var _ resources.Reconciler = &PkiReconciler{}
@@ -43,17 +44,22 @@ type PkiReconciler struct {
 
 // NewPki creates PkiReconciler
 func NewPki(
+	ctx context.Context,
 	client k8sclient.Client,
 	pandaCluster *redpandav1alpha1.Cluster,
 	fqdn string,
 	clusterFQDN string,
 	scheme *runtime.Scheme,
 	logger logr.Logger,
-) *PkiReconciler {
+) (*PkiReconciler, error) {
+	cc, err := NewClusterCertificates(ctx, pandaCluster, keyStoreKey(pandaCluster), client, fqdn, clusterFQDN, scheme, logger)
+	if err != nil {
+		return nil, err
+	}
 	return &PkiReconciler{
 		client, scheme, pandaCluster, fqdn, clusterFQDN, logger.WithValues("Reconciler", "pki"),
-		NewClusterCertificates(pandaCluster, keyStoreKey(pandaCluster), client, fqdn, clusterFQDN, scheme, logger),
-	}
+		cc,
+	}, nil
 }
 
 func keyStoreKey(pandaCluster *redpandav1alpha1.Cluster) types.NamespacedName {
@@ -90,5 +96,10 @@ func (r *PkiReconciler) StatefulSetVolumeProvider() resourcetypes.StatefulsetTLS
 
 // AdminAPIConfigProvider returns provider of admin TLS configuration
 func (r *PkiReconciler) AdminAPIConfigProvider() resourcetypes.AdminTLSConfigProvider {
+	return r.clusterCertificates
+}
+
+// BrokerTLSConfigProvider returns provider of broker TLS
+func (r *PkiReconciler) BrokerTLSConfigProvider() resourcetypes.BrokerTLSConfigProvider {
 	return r.clusterCertificates
 }
